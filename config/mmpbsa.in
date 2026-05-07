@@ -1,0 +1,24 @@
+Input file for gmx_MMPBSA — MM-PB/GBSA binding free energy
+&general
+sys_name="Protein-Ligand",
+startframe=1,
+endframe=500,
+interval=5,
+forcefields="leaprc.protein.ff14SB,leaprc.gaff2",
+/
+
+&gb
+igb=5,
+saltcon=0.15,
+/
+
+&pb
+istrng=0.15,
+inp=2,
+/
+
+&decomp
+idecomp=2,
+dec_verbose=0,
+print_res="within 4",
+/

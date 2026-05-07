@@ -1,0 +1,36 @@
+name: mdenv
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  # MD engine
+  - gromacs=2024.1        # CPU version; for GPU build from source with CUDA
+
+  # Ligand parameterization
+  - acpype=2022.7.21
+  - ambertools>=22        # provides antechamber
+  - openbabel>=3.1
+
+  # Structure handling
+  - rdkit>=2023.09
+  - pdbfixer>=1.9
+  - openmm>=8.0           # needed by pdbfixer
+
+  # Analysis
+  - mdanalysis>=2.6
+  - numpy>=1.24
+  - matplotlib>=3.7
+  - pandas>=2.0
+  - scipy>=1.11
+
+  # Workflow
+  - snakemake-minimal>=7.32
+  - pyyaml>=6.0
+
+  # Binding free energy
+  - pip
+
+  - pip:
+    - gmx_MMPBSA>=1.6.3

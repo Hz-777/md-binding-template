@@ -1,0 +1,32 @@
+system:
+  name: "protein_ligand"
+  ligand_charge: 0          # 配体净电荷，整数
+  ligand_ff: "gaff2"        # gaff or gaff2
+  protein_ff: "charmm36m"   # charmm36m / amber99sb-ildn / oplsaa
+
+water:
+  model: "tip3p"            # tip3p / tip4p / spce
+  box_type: "dodecahedron"  # dodecahedron / cubic
+  padding: 1.2              # nm，蛋白质到盒子边缘距离
+  ion_conc: 0.15            # mol/L，NaCl 浓度
+
+md:
+  em_steps: 50000
+  nvt_steps: 100000         # 200 ps
+  npt_steps: 100000         # 200 ps
+  prod_steps: 5000000       # 10 ns，按需调整
+  dt: 0.002                 # ps
+  temp: 300                 # K
+  pres: 1.0                 # bar
+
+mmpbsa:
+  startframe: 1
+  endframe: 500             # 从 production 轨迹取的帧数上限
+  interval: 5               # 每隔几帧取一次
+  igb: 5                    # GB 模型 (5 = GBn2)
+  istrng: 0.15              # mol/L
+  use_sander: false
+
+gpu:
+  enabled: false            # 有 GPU 时设为 true
+  gpu_id: 0

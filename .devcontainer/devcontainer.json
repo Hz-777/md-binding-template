@@ -1,0 +1,53 @@
+{
+  "name": "MD Binding Free Energy",
+  "dockerFile": "../Dockerfile",
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
+
+  "remoteEnv": {
+    "CONDA_DEFAULT_ENV": "mdenv",
+    "PATH": "/opt/conda/envs/mdenv/bin:/opt/conda/bin:${PATH}"
+  },
+
+  "postCreateCommand": "echo '✅ Environment ready. Put protein.pdb and ligand.sdf in inputs/, then run: snakemake --snakefile workflow/Snakefile -c4'",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "snakemake.snakemake-lang",
+        "ms-toolsai.jupyter",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/opt/conda/envs/mdenv/bin/python",
+        "python.terminal.activateEnvironment": true,
+        "editor.formatOnSave": true,
+        "[python]": {
+          "editor.defaultFormatter": "ms-python.python"
+        },
+        "files.associations": {
+          "*.mdp": "ini",
+          "Snakefile": "python",
+          "*.smk": "python"
+        }
+      }
+    }
+  },
+
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+
+  "forwardPorts": [],
+  "portsAttributes": {},
+
+  "mounts": [],
+
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb",
+    "storage": "32gb"
+  }
+}

@@ -1,0 +1,150 @@
+"""
+Snakemake workflow: Protein-Ligand MD + MM-PB/GBSA binding free energy.
+
+Usage:
+  snakemake -c4              # 4 CPU cores
+  snakemake -c4 --use-conda  # with conda envs
+  snakemake --dag | dot -Tpng > dag.png  # visualize DAG
+"""
+
+import yaml
+
+configfile: "config/params.yaml"
+
+WORKDIR = "work"
+RESDIR  = "results"
+
+
+# ---------- Final targets ----------
+rule all:
+    input:
+        f"{RESDIR}/mmpbsa/FINAL_RESULTS_MMPBSA.dat",
+        f"{RESDIR}/plots/rmsd.png",
+        f"{RESDIR}/plots/mmpbsa_decomposition.png",
+        f"{RESDIR}/report.html",
+
+
+# ---------- Step 1: Protein preparation ----------
+rule prepare_protein:
+    input:
+        pdb = "inputs/protein.pdb",
+    output:
+        pdb = f"{WORKDIR}/01_protein_clean.pdb",
+    log:
+        f"{WORKDIR}/logs/01_prepare_protein.log",
+    shell:
+        "python3 scripts/01_prepare_protein.py "
+        "--input {input.pdb} --output {output.pdb} "
+        "> {log} 2>&1"
+
+
+# ---------- Step 2: Ligand parameterization ----------
+rule prepare_ligand:
+    input:
+        sdf = "inputs/ligand.sdf",
+    output:
+        itp = f"{WORKDIR}/02_ligand/gmx/MOL_GMX.itp",
+        gro = f"{WORKDIR}/02_ligand/gmx/MOL_GMX.gro",
+    log:
+        f"{WORKDIR}/logs/02_prepare_ligand.log",
+    params:
+        charge = config["system"]["ligand_charge"],
+        ff     = config["system"]["ligand_ff"],
+    shell:
+        "python3 scripts/02_prepare_ligand.py "
+        "--input {input.sdf} "
+        "--charge {params.charge} "
+        "--ff {params.ff} "
+        "--workdir {WORKDIR}/02_ligand "
+        "> {log} 2>&1"
+
+
+# ---------- Step 3: Build complex ----------
+rule build_complex:
+    input:
+        protein = rules.prepare_protein.output.pdb,
+        lig_itp = rules.prepare_ligand.output.itp,
+        lig_gro = rules.prepare_ligand.output.gro,
+    output:
+        gro   = f"{WORKDIR}/03_complex/complex.gro",
+        topol = f"{WORKDIR}/03_complex/topol.top",
+        ndx   = f"{WORKDIR}/03_complex/index.ndx",
+    log:
+        f"{WORKDIR}/logs/03_build_complex.log",
+    shell:
+        "bash scripts/03_build_complex.sh > {log} 2>&1"
+
+
+# ---------- Step 4: Solvate + add ions ----------
+rule solvate:
+    input:
+        gro   = rules.build_complex.output.gro,
+        topol = rules.build_complex.output.topol,
+    output:
+        gro   = f"{WORKDIR}/04_solvated/solvated_ions.gro",
+        topol = f"{WORKDIR}/04_solvated/topol.top",
+        ndx   = f"{WORKDIR}/04_solvated/index.ndx",
+    log:
+        f"{WORKDIR}/logs/04_solvate.log",
+    shell:
+        "bash scripts/04_solvate_and_ions.sh > {log} 2>&1"
+
+
+# ---------- Step 5: MD simulations ----------
+rule run_md:
+    input:
+        gro   = rules.solvate.output.gro,
+        topol = rules.solvate.output.topol,
+        ndx   = rules.solvate.output.ndx,
+    output:
+        tpr = f"{WORKDIR}/05_md/md.tpr",
+        xtc = f"{WORKDIR}/05_md/md.xtc",
+        gro = f"{WORKDIR}/05_md/md.gro",
+        edr = f"{WORKDIR}/05_md/md.edr",
+    log:
+        f"{WORKDIR}/logs/05_run_md.log",
+    threads: workflow.cores
+    shell:
+        "bash scripts/05_run_md.sh > {log} 2>&1"
+
+
+# ---------- Step 6: MM-PB/GBSA ----------
+rule mmpbsa:
+    input:
+        tpr   = rules.run_md.output.tpr,
+        xtc   = rules.run_md.output.xtc,
+        topol = f"{WORKDIR}/03_complex/topol.top",
+    output:
+        dat = f"{RESDIR}/mmpbsa/FINAL_RESULTS_MMPBSA.dat",
+    log:
+        f"{WORKDIR}/logs/06_mmpbsa.log",
+    shell:
+        "bash scripts/06_mmpbsa.sh > {log} 2>&1"
+
+
+# ---------- Step 7: Analysis + plots ----------
+rule plot:
+    input:
+        tpr = rules.run_md.output.tpr,
+        xtc = rules.run_md.output.xtc,
+        dat = rules.mmpbsa.output.dat,
+    output:
+        rmsd  = f"{RESDIR}/plots/rmsd.png",
+        dcomp = f"{RESDIR}/plots/mmpbsa_decomposition.png",
+    log:
+        f"{WORKDIR}/logs/07_plot.log",
+    shell:
+        "python3 analysis/plot_results.py > {log} 2>&1"
+
+
+# ---------- Step 8: HTML report ----------
+rule report:
+    input:
+        rules.plot.output,
+        rules.mmpbsa.output.dat,
+    output:
+        html = f"{RESDIR}/report.html",
+    log:
+        f"{WORKDIR}/logs/08_report.log",
+    shell:
+        "python3 analysis/generate_report.py > {log} 2>&1"

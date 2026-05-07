@@ -1,0 +1,48 @@
+version: "3.9"
+
+services:
+  md-pipeline:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: md-binding-template:latest
+    container_name: md-run
+    volumes:
+      # Mount the project root into the container
+      - .:/workspace
+    working_dir: /workspace
+    # Override command to run the full pipeline
+    command: >
+      bash -c "
+        conda run -n mdenv snakemake
+          --snakefile workflow/Snakefile
+          --cores ${CORES:-4}
+          --rerun-incomplete
+          --printshellcmds
+      "
+    environment:
+      - CORES=${CORES:-4}
+    # Uncomment for GPU (requires nvidia-container-toolkit):
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # Interactive shell for debugging
+  md-shell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: md-binding-template:latest
+    container_name: md-shell
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    stdin_open: true
+    tty: true
+    entrypoint: ["conda", "run", "-n", "mdenv", "bash"]
+    profiles:
+      - debug
